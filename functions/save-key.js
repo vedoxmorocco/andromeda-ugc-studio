@@ -1,35 +1,36 @@
-exports.handler = async function(event, context) {
+exports.handler = async (event, context) => {
   try {
-    if (event.httpMethod !== "POST") {
-      return {
-        statusCode: 405,
-        body: JSON.stringify({ error: "Method Not Allowed" })
-      };
-    }
-
-    const data = JSON.parse(event.body || "{}");
-
-    const apiKey = data.apiKey;
+    const body = JSON.parse(event.body || "{}");
+    const apiKey = body.apiKey;
 
     if (!apiKey) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "API key is required" })
+        body: JSON.stringify({
+          error: "API key is required"
+        })
       };
     }
 
-    // هنا تقدر تخزن المفتاح أو تعالجه
-    // حاليا غير كنرجعو success
-
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: JSON.stringify({
+        success: true,
+        message: "API key received",
+        keyLength: apiKey.length
+      })
     };
 
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({
+        error: error.message
+      })
     };
   }
 };
