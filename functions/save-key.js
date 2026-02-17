@@ -1,4 +1,11 @@
-const { kv } = require('@netlify/blobs');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin (Netlify provides credentials via environment)
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const db = admin.firestore();
 
 exports.handler = async (event, context) => {
   try {
@@ -13,6 +20,9 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Extract token
+    const token = authHeader.substring(7);
+
     // Parse request body
     const body = JSON.parse(event.body || "{}");
     const apiKey = body.apiKey;
@@ -25,12 +35,17 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Use generic identifier for storing API key
-    const userIdentifier = "authenticated_user";
-
     try {
-      // Store in Netlify KV Store (persistent)
-      await kv.set(userIdentifier, apiKey);
+      // Verify token and get user ID
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const uid = decodedToken.uid;
+
+      // Store API key in Firestore at users/{uid}/private/apiKey
+      const docRef = db.collection('users').doc(uid).collection('private').doc('apiKey');
+      await docRef.set({
+        key: apiKey,
+        savedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
 
       return {
         statusCode: 200,
@@ -43,11 +58,12 @@ exports.handler = async (event, context) => {
           message: "API key saved securely"
         })
       };
-    } catch (kvError) {
+    } catch (tokenError) {
+      // Invalid token
       return {
-        statusCode: 500,
+        statusCode: 401,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Failed to store API key" }),
+        body: JSON.stringify({ error: "Invalid token" }),
       };
     }
 
@@ -56,7 +72,7 @@ exports.handler = async (event, context) => {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: error.message || "Server error"
+        error: "Server error: " + error.message
       })
     };
   }
