@@ -6,23 +6,14 @@ exports.handler = async (event) => {
     if (!authHeader.startsWith("Bearer ")) {
       return {
         statusCode: 401,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ error: "Unauthorized" }),
       };
     }
 
-    // Get user ID from headers (should be set by frontend from Firebase token)
-    const userId = event.headers["x-user-id"];
-    
-    if (!userId) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: "User ID required" }),
-      };
-    }
-
-    // TODO: Check if API key exists in secure storage (KV Store, database, etc.)
-    // For now, check if environment variable exists
-    const hasKey = !!process.env[`GEMINI_KEY_${userId}`];
+    // Use generic identifier since we don't have user ID from Firebase on backend
+    const userIdentifier = "authenticated_user";
+    const hasKey = !!process.env[`GEMINI_KEY_${userIdentifier}`];
 
     return {
       statusCode: 200,
@@ -32,6 +23,7 @@ exports.handler = async (event) => {
   } catch (error) {
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Server error" }),
     };
   }
