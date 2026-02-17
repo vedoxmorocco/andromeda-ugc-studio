@@ -1,3 +1,5 @@
+const { kv } = require('@netlify/blobs');
+
 exports.handler = async (event) => {
   try {
     // Check for authorization header
@@ -11,15 +13,27 @@ exports.handler = async (event) => {
       };
     }
 
-    // Use generic identifier since we don't have user ID from Firebase on backend
+    // Use generic identifier for storing API key
     const userIdentifier = "authenticated_user";
-    const hasKey = !!process.env[`GEMINI_KEY_${userIdentifier}`];
+    
+    try {
+      // Check if API key exists in Netlify KV Store
+      const storedKey = await kv.get(userIdentifier);
+      const hasKey = !!storedKey;
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exists: hasKey }),
-    };
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exists: hasKey }),
+      };
+    } catch (kvError) {
+      // KV Store error - treat as key doesn't exist
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exists: false }),
+      };
+    }
   } catch (error) {
     return {
       statusCode: 500,

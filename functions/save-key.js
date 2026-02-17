@@ -1,3 +1,5 @@
+const { kv } = require('@netlify/blobs');
+
 exports.handler = async (event, context) => {
   try {
     // Check for authorization header
@@ -23,25 +25,31 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Extract user info from Firebase token (can be decoded server-side)
-    // For now, use a generic key or the auth header as identifier
+    // Use generic identifier for storing API key
     const userIdentifier = "authenticated_user";
 
-    // TODO: Store securely in Netlify KV Store or encrypted database
-    // For now, store in environment (NOT FOR PRODUCTION)
-    process.env[`GEMINI_KEY_${userIdentifier}`] = apiKey;
+    try {
+      // Store in Netlify KV Store (persistent)
+      await kv.set(userIdentifier, apiKey);
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-      body: JSON.stringify({
-        success: true,
-        message: "API key saved securely"
-      })
-    };
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          success: true,
+          message: "API key saved securely"
+        })
+      };
+    } catch (kvError) {
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Failed to store API key" }),
+      };
+    }
 
   } catch (error) {
     return {
