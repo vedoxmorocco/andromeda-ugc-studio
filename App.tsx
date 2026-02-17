@@ -84,13 +84,26 @@ export default function App() {
       if (user) {
         // In this BYOK architecture, we check if they have a key via the proxy
         try {
-          const idToken = await user.getIdToken();
+          const idToken = await user.getIdToken(true); // Force refresh
+          if (!idToken) throw new Error("No token");
+          
           const check = await fetch('/.netlify/functions/check-key', {
-            headers: { 'Authorization': `Bearer ${idToken}` }
+            method: 'GET',
+            headers: { 
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json'
+            }
           });
-          const { exists } = await check.json();
-          setHasApiKey(exists);
+          
+          if (!check.ok) {
+            console.error('check-key response:', check.status, await check.text());
+            setHasApiKey(false);
+          } else {
+            const data = await check.json();
+            setHasApiKey(data.exists || false);
+          }
         } catch (e) {
+          console.error('Error checking API key:', e);
           setHasApiKey(false);
         }
         
